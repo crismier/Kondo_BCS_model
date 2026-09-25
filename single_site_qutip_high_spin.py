@@ -77,7 +77,6 @@ for j in range(N):
 E, V = eigenshuffle_eigh(H_stack) # solve all Hamiltonians while keeping eigenenergies sorted
 
 #calculate excitation energies
-
 YSR_energy_1 = np.zeros(2*N+1)
 
 for i in range(2*N+1):    
@@ -86,7 +85,6 @@ for i in range(2*N+1):
 #%% plots
 
 fig,axs = plt.subplots(2,1, figsize=(15*cm, 20*cm))
-
 ### plot eigenstates
 axs[0].plot(E, 'o', ms = 1.0)
 axs[0].axvline(1, c='k', lw=0.5)
