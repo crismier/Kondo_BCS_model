@@ -72,6 +72,17 @@ for i in range(2*N+1):
     YSR_energies[i] = abs(E[i,5] - E[i,0])
 
 
+#%% compute pariry for each eigen states
+
+parity = (1j * np.pi * (n_up + n_dn)).expm() # parity operator
+
+H = H_tot(Delta=1.0, J=1.5, B=0.0)
+E, V = H.eigenstates()
+
+for i, psi in enumerate(V):
+    p = (psi.dag() * parity * psi)   # expectation value
+    print(f"E = {E[i]:.4f}, parity = {np.real(p):.4f}")
+
 #%% plots
 
 fig,axs = plt.subplots(2,1, figsize=(15*cm, 20*cm))
