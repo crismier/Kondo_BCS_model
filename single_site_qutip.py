@@ -43,8 +43,8 @@ def H_tot(Delta, J, B):
 
 #%% Hamiltonian parameters
 Delta = 1
-Jmax = 2
-Bmax = 0.0
+Jmax = 1.5
+Bmax = 0.5
 
 #%% solve Hamiltonian for Delta = 1, J = 0 --> Jmax; B = 0 --> Bmax; 
 
@@ -61,45 +61,49 @@ for i in range(N):
     
 for j in range(N):
     H_stack[j+N+1,:,:] = H_tot(Delta,J[-1],B[j]).full()
-    
+ 
+# solve eigenstates
 E, V = eigenshuffle_eigh(H_stack) # solve all Hamiltonians while keeping eigenenergies sorted
 
+# calculate parities
+parity = (1j*np.pi*(n_up+n_dn)).expm()
+P = parity.full().real 
+
+parities = np.einsum('ijk,jl,ilk->ik', V.conj(), P, V)
+parities = np.real(parities)  
 
 # calculate excitation energies
-YSR_energies = np.zeros(2*N+1)
+excitation = E - E.min(axis=1, keepdims=True)    
+  
+# calculate excitation energies changing parity
+#E0 = E.min(axis=1)                     # true ground-state energy at each J
+#gs_idx = E.argmin(axis=1)              # which branch is the ground state, at each J
+#p_gs = parities[np.arange(2*N + 1), gs_idx]   # ground-state parity at each J
 
-for i in range(2*N+1):    
-    YSR_energies[i] = abs(E[i,5] - E[i,0])
-
-
-#%% compute pariry for each eigen states
-
-parity = (1j * np.pi * (n_up + n_dn)).expm() # parity operator
-
-H = H_tot(Delta=1.0, J=1.5, B=0.0)
-E, V = H.eigenstates()
-
-for i, psi in enumerate(V):
-    p = (psi.dag() * parity * psi)   # expectation value
-    print(f"E = {E[i]:.4f}, parity = {np.real(p):.4f}")
+# mask: branches with parity opposite to the ground state, at each J
+#opposite_mask = np.sign(parities) != np.sign(p_gs)[:, None]
+#excitations = np.where(opposite_mask, E - E0[:, None], np.nan)
+  
 
 #%% plots
 
 fig,axs = plt.subplots(2,1, figsize=(15*cm, 20*cm))
 
 ### plot eigenstates
-axs[0].plot(E, 'o', ms = 1.0)
+for k in range(8):
+    color = "C0" if parities[0, k] > 0 else "C1"
+    axs[0].plot(E[:,k], 'o', ms = 1.0, c=color)
+
 axs[0].axvline(1, c='k', lw=0.5)
 axs[0].axvline(1+N, c='k', lw=0.5)
 axs[0].set_ylabel('Energy')
 axs[0].set_xlim([0, 2*N+1])
 
-axs[1].plot(YSR_energies, c='C0')
+axs[1].plot(excitation, c='C0')
 axs[1].axvline(1, c='k', lw=0.5)
 axs[1].axvline(1+N, c='k', lw=0.5)
 axs[1].set_ylabel('Excitation energy')
 axs[1].set_xlim([0, 2*N+1])
-
 
 
 
