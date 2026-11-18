@@ -34,11 +34,12 @@ sp = c_up.dag() * c_dn
 sm = sp.dag()
 
 # define Hamiltonian
-def H_tot(Delta, J, B):
+def H_tot(Delta, J, B, U):
     H_pair  = Delta * (c_up.dag() * c_dn.dag() + c_dn * c_up) #SC
     H_K     = J * (Sz * sz + 0.5 * (Sp * sm + Sm * sp)) # Kondo
     H_Zeeman = B*(Sz + sz) # Zeeman
-    H =  H_pair + H_K + H_Zeeman
+    H_U      = U * (n_up + n_dn) # potential scattering
+    H =  H_pair + H_K + H_Zeeman + H_U
     return(H)
 
 
@@ -70,9 +71,11 @@ def spectrum(H, creators, energy, kT, eta):
 
 def spectrum_full(H, annihilators, energy, kT, eta):
     E, V = np.linalg.eigh(H.full())
-    p = np.exp(-(E - E[0])/kT); p /= p.sum()
+    p = np.exp(-(E - E[0])/kT)
+    p /= p.sum()
     dE = E[:, None] - E[None, :]                    # dE[m,n] = E_m - E_n
     dos = np.zeros_like(energy)
+    
     for c in annihilators:
         for op, sign in ((c.dag(), +1), (c, -1)):   # addition at +dE, removal at -dE
             M = V.conj().T @ op.full() @ V          # M[m,n] = <m|op|n>
@@ -87,6 +90,7 @@ def spectrum_full(H, annihilators, energy, kT, eta):
 Delta = 1
 Jmax = 1.5
 Bmax = 0.2
+U = 0
 
 #%% solve Hamiltonian for Delta = 1, J = 0 --> Jmax; B = 0 --> Bmax; 
 
@@ -95,14 +99,14 @@ J = np.linspace(0,Jmax,N)
 B = np.linspace(0,Bmax,N)
 
 H_stack = np.zeros([2*N+1,8,8])
-H_stack[0,:,:] = H_tot(Delta,0,0).full()
+H_stack[0,:,:] = H_tot(Delta,0,0,U).full()
 
 # Stack of Hamiltonians, shape (N, 8, 8)
 for i in range(N):
-    H_stack[i+1,:,:] = H_tot(Delta,J[i],0).full()
+    H_stack[i+1,:,:] = H_tot(Delta,J[i],0, U).full()
     
 for j in range(N):
-    H_stack[j+N+1,:,:] = H_tot(Delta,J[-1],B[j]).full()
+    H_stack[j+N+1,:,:] = H_tot(Delta,J[-1],B[j], U).full()
  
 # solve eigenstates
 E, V = eigenshuffle_eigh(H_stack) # solve all Hamiltonians while keeping eigenenergies sorted
@@ -187,25 +191,27 @@ axs[1].set_xticklabels(labels)
 creators = [c_up.dag(), c_dn.dag()]### creation and anihiliation operators
 Delta = 1.0
 energy = np.linspace(-0.9*Delta, 0.9*Delta, 300)
-kT, eta = 0.001*Delta, 0.2*Delta
+kT, eta = 0.001*Delta, 0.05*Delta
+U = 0.5*Delta
 
 
-dos_SC = spectrum_full(H_tot(Delta, 0, 0.0), [c_up, c_dn], energy, kT, eta)
-dos = spectrum_full(H_tot(Delta, 0.5*Delta, 0.0), [c_up, c_dn], energy, kT, eta)
+dos_SC = spectrum_full(H_tot(Delta, 0, 0.0, U), [c_up, c_dn], energy, kT, eta)
+dos = spectrum_full(H_tot(Delta, 0.5*Delta, 0.0, U), [c_up, c_dn], energy, kT, eta)
 
 #plt.plot(energy, dos_SC)
 #plt.plot(energy, dos)
 
 ##### sweep J coupling
 Js = np.linspace(0, 4*Delta, 101)
-dos_J = np.array([spectrum_full(H_tot(Delta, Jv, 0.0), creators, energy, kT, eta)
+dos_J = np.array([spectrum_full(H_tot(Delta, Jv, 0.0, U), creators, energy, kT, eta)
                   for Jv in Js])
 
-plt.pcolormesh(Js/Delta, energy/Delta, dos_J.T, rasterized=True)
-plt.axvline(4/3, ls="--", c="w")        # QPT at J = 4*Delta/3
-plt.xlabel(r"$J_K/\Delta$"); plt.ylabel(r"$E/\Delta$")
-plt.colorbar(label="DOS")
-plt.show()
+fig1,ax = plt.subplots(figsize=(18*cm, 10*cm))
+im1 = ax.pcolormesh(Js/Delta, energy/Delta, dos_J.T, rasterized=True)
+#ax.axvline(4/3, ls="--", c="w")        # QPT at J = 4*Delta/3
+ax.set_xlabel(r"$J_K/\Delta$"); plt.ylabel(r"$E/\Delta$")
+fig1.colorbar(im1, orientation='vertical')
+#plt.show()
 
 
 
